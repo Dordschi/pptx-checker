@@ -1,0 +1,45 @@
+{
+  "broken.pptx": [
+    {
+      "slide": 2,
+      "defect": "flipped_image",
+      "description": "картинка перевёрнута вертикально (flipV=1)"
+    },
+    {
+      "slide": 3,
+      "defect": "object_out_of_slide",
+      "description": "текстовое поле: низ (5.6+3.2=8.8\") > высоты слайда (7.5\")"
+    },
+    {
+      "slide": 3,
+      "defect": "object_out_of_slide",
+      "description": "картинка: правый край (10.5+4=14.5\") > ширины слайда (13.333\")"
+    },
+    {
+      "slide": 4,
+      "defect": "overlap_picture_text",
+      "description": "прямоугольники текста (0.8..6.8) и картинки (4.5..10.5) пересекаются"
+    },
+    {
+      "slide": 5,
+      "defect": "low_resolution_image",
+      "description": "80x80 px при отображении 6\"x5.5\" → ~13 DPI (< 150)"
+    },
+    {
+      "slide": 6,
+      "defect": "nonstandard_font",
+      "description": "используется шрифт 'Comic Sans MS' (не из белого списка, не внедрён)"
+    },
+    {
+      "slide": 7,
+      "defect": "auto_advance_transition",
+      "description": "<p:transition advTm=\"2000\" advClick=\"0\"> — сам переключится через 2 с"
+    },
+    {
+      "slide": 8,
+      "defect": "external_link",
+      "description": "ран с внешним hyperlink (TargetMode=External)"
+    }
+  ],
+  "clean.pptx": []
+}

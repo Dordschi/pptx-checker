@@ -36,6 +36,34 @@ python3 check_presentation.py презентация.pptx --fix
 python3 check_presentation.py --test
 ```
 
+### Windows 10
+
+1. Скачай Python с [python.org](https://www.python.org/downloads/) — при установке поставь галочку **Add python.exe to PATH**
+2. Открой командную строку (`Win+R` → `cmd`) в папке репозитория и выполни:
+
+```bat
+py -3 -m pip install -r requirements.txt
+py -3 check_presentation.py --test
+py -3 check_presentation.py презентация.pptx
+```
+
+Окно интерфейса: `py -3 app_ui.py` (tkinter встроен в Python для Windows — отдельно ставить не нужно).
+
+### WSL2 (Ubuntu)
+
+```bash
+sudo apt update && sudo apt install -y python3-pip python3-tk
+pip install -r requirements.txt
+python3 check_presentation.py --test        # самопроверка
+python3 app_ui.py                           # окно (нужен python3-tk)
+```
+
+Пакет `python3-tk` нужен только для окна `app_ui.py`; сам проверяльщик работает и без него.
+
+### Автопроверка в GitHub Actions
+
+При каждом push репозиторий сам проверяется на **Ubuntu и Windows**: установка зависимостей → компиляция файлов → генерация эталонов → самопроверка `--test` → прогон на реальной презентации. Workflow: `.github/workflows/ci.yml`.
+
 ## Пример вывода (реальный файл с nsportal.ru)
 
 ```
@@ -48,9 +76,6 @@ python3 check_presentation.py --test
 ...
 ИТОГО: проблем — 28
 ```
-
-<!-- Если положишь скриншот в репозиторий, раскомментируй строку ниже:
-![Вывод программы](отчёт-неделя4/вывод-проверки-5-файлов.png) -->
 
 ## Проверено на практике
 
@@ -65,11 +90,11 @@ python3 check_presentation.py --test
 check_presentation.py     # основная программа (7 проверок, --fix, --test)
 app_ui.py                 # окно интерфейса на tkinter (в разработке)
 generate_test_files.py    # генератор тестовых презентаций с дефектами
+requirements.txt          # зависимости (python-pptx)
+.github/workflows/ci.yml  # автопроверка на Ubuntu и Windows при каждом push
+.gitignore                # что не коммитить
 test_files/               # эталонные файлы: broken.pptx, clean.pptx, ...
-отчёт-неделя4/            # вывод проверки реальных файлов + ссылки-источники
-отчёт-неделя3/            # результаты режима --fix (до/после)
-отчёт-неделя2/            # первые тесты и материалы интервью
-1-шпаргалка.md … 15-отчёт-неделя4.md   # документы проекта по неделям
+
 ```
 
 ## Статус проекта
@@ -91,3 +116,5 @@ test_files/               # эталонные файлы: broken.pptx, clean.pp
 
 ---
 
+**Автор:** ученик 10 класса, проектная деятельность 2026/27.
+**ФИО руководителя:** [вписать]
