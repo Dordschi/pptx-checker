@@ -1,6 +1,6 @@
 # Release: сборка готовых программ при выставлении тега v*
-# Как запустить: на GitHub — вкладка Tags → Create new tag "v1.0" → publish
-# GitHub Actions соберёт exe/бинарники и создаст страницу Releases с файлами.
+# Выставь тег на GitHub: Tags → Create new tag "v1.0" → publish.
+# Соберётся exe для Windows и бинарник для Linux, создастся Release.
 name: Release
 
 on:
@@ -19,8 +19,6 @@ jobs:
             asset: pptx-checker-windows.exe
           - os: ubuntu-latest
             asset: pptx-checker-linux
-          - os: macos-latest
-            asset: pptx-checker-macos
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -61,7 +59,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Скачать все три файла
+      # Без checkout gh release create не работает — ему нужен git-репозиторий
+      - name: Скачать репозиторий
+        uses: actions/checkout@v4
+
+      - name: Скачать собранные файлы
         uses: actions/download-artifact@v4
         with:
           merge-multiple: true

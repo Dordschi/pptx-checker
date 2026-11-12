@@ -72,7 +72,6 @@ python3 app_ui.py                           # окно (нужен python3-tk)
 |---------|------|
 | Windows 10/11 | `pptx-checker-windows.exe` |
 | Linux | `pptx-checker-linux` |
-| macOS | `pptx-checker-macos` |
 
 ```bat
 :: Windows: открой cmd в папке загрузок
@@ -80,14 +79,14 @@ pptx-checker-windows.exe презентация.pptx
 ```
 
 ```bash
-# Linux / macOS
+# Linux
 chmod +x pptx-checker-linux
 ./pptx-checker-linux презентация.pptx
 ```
 
-Windows может написать «неизвестный издатель» — нажми «Подробнее» → «Всё равно запустить». На macOS — правый клик по файлу → «Открыть». Это нормально: у проекта нет коммерческого сертификата.
+Windows может написать «неизвестный издатель» — нажми «Подробнее» → «Всё равно запустить». Это нормально: у проекта нет коммерческого сертификата.
 
-Сборка автоматическая: выставлен тег `v*` → GitHub Actions соберёт три файла и создаст страницу Releases (workflow: `.github/workflows/release.yml`).
+Сборка автоматическая: выставлен тег `v*` → GitHub Actions соберёт файлы и создаст страницу Releases (workflow: `.github/workflows/release.yml`).
 
 ## Пример вывода (реальный файл с nsportal.ru)
 
