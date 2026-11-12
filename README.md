@@ -64,6 +64,31 @@ python3 app_ui.py                           # окно (нужен python3-tk)
 
 При каждом push репозиторий сам проверяется на **Ubuntu и Windows**: установка зависимостей → компиляция файлов → генерация эталонов → самопроверка `--test` → прогон на реальной презентации. Workflow: `.github/workflows/ci.yml`.
 
+## Готовые сборки (Releases)
+
+Не хочешь ставить Python? На странице **Releases** репозитория лежат готовые программы — скачиваешь и запускаешь:
+
+| Система | Файл |
+|---------|------|
+| Windows 10/11 | `pptx-checker-windows.exe` |
+| Linux | `pptx-checker-linux` |
+| macOS | `pptx-checker-macos` |
+
+```bat
+:: Windows: открой cmd в папке загрузок
+pptx-checker-windows.exe презентация.pptx
+```
+
+```bash
+# Linux / macOS
+chmod +x pptx-checker-linux
+./pptx-checker-linux презентация.pptx
+```
+
+Windows может написать «неизвестный издатель» — нажми «Подробнее» → «Всё равно запустить». На macOS — правый клик по файлу → «Открыть». Это нормально: у проекта нет коммерческого сертификата.
+
+Сборка автоматическая: выставлен тег `v*` → GitHub Actions соберёт три файла и создаст страницу Releases (workflow: `.github/workflows/release.yml`).
+
 ## Пример вывода (реальный файл с nsportal.ru)
 
 ```
@@ -92,10 +117,12 @@ app_ui.py                 # окно интерфейса на tkinter (в ра�
 generate_test_files.py    # генератор тестовых презентаций с дефектами
 requirements.txt          # зависимости (python-pptx)
 .github/workflows/ci.yml  # автопроверка на Ubuntu и Windows при каждом push
+.github/workflows/release.yml # сборка готовых программ (Releases) по тегу
 .gitignore                # что не коммитить
 test_files/               # эталонные файлы: broken.pptx, clean.pptx, ...
-
 ```
+
+Автогенерируются командой `python3 generate_test_files.py` (в репозитории уже лежат).
 
 ## Статус проекта
 
@@ -115,6 +142,3 @@ test_files/               # эталонные файлы: broken.pptx, clean.pp
 - [ ] `ИНСТРУКЦИЯ.md` для учителя
 
 ---
-
-**Автор:** ученик 10 класса, проектная деятельность 2026/27.
-**ФИО руководителя:** [вписать]

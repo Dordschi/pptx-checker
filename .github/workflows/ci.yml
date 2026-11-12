@@ -6,6 +6,11 @@ on:
   push:
   pull_request:
 
+env:
+  # Кириллица в консоли Windows-раннера (там cp1252) — без этого падает print
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: "utf-8"
+
 jobs:
   test:
     strategy:
@@ -35,16 +40,11 @@ jobs:
       - name: Самопроверка программы (ожидается PASS 8/8)
         run: python check_presentation.py --test
 
-      - name: Прогнать программу на реальной презентации
+      - name: Прогнать на файле с дефектами (ожидается отчёт, код 1)
         shell: bash
         run: |
-          F="отчёт-неделя4/повторение-3-класс-вспоминаем.pptx"
-          if [ ! -f "$F" ]; then
-            echo "Файла нет в репозитории — шаг пропущен."
-            exit 0
-          fi
           set +e
-          python check_presentation.py "$F" > out.txt 2>&1
+          python check_presentation.py test_files/broken.pptx > out.txt 2>&1
           code=$?
           set -e
           cat out.txt
