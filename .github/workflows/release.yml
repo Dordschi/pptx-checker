@@ -1,11 +1,12 @@
-# Release: сборка ГОТОВЫХ ПРИЛОЖЕНИЙ (окно tkinter) при выставлении тега v*
-# Как запустить: GitHub → Releases → Draft a new release → тег v1.2 → Publish.
-# На выходе: pptx-checker-windows.exe (двойной клик → окно) и pptx-checker-linux.
+# Release: сборка ГОТОВЫХ ПРИЛОЖЕНИЙ (окно tkinter) при выставлении тега
+# Теги: и маленькая v (v0.0.5), и заглавная V (V0.0.5) — фильтр чувствителен к регистру.
+# Если релиз уже создан руками — workflow дополняет его файлами (upload),
+# если нет — создаёт сам (create).
 name: Release
 
 on:
   push:
-    tags: ["v*"]
+    tags: ["v*", "V*"]
 
 permissions:
   contents: write
@@ -60,7 +61,6 @@ jobs:
     permissions:
       contents: write
     steps:
-      # Без checkout gh release create не работает — ему нужен git-репозиторий
       - name: Скачать репозиторий
         uses: actions/checkout@v4
 
@@ -70,10 +70,15 @@ jobs:
           merge-multiple: true
           path: dist
 
-      - name: Создать Release с файлами
+      - name: Создать Release или дополнить существующий
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/* \
-            --title "pptx-checker $GITHUB_REF_NAME" \
-            --generate-notes
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Релиз уже есть — загружаю файлы в него"
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* \
+              --title "pptx-checker $GITHUB_REF_NAME" \
+              --generate-notes
+          fi
