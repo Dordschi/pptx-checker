@@ -1,6 +1,6 @@
-# Release: сборка готовых программ при выставлении тега v*
-# Выставь тег на GitHub: Tags → Create new tag "v1.0" → publish.
-# Соберётся exe для Windows и бинарник для Linux, создастся Release.
+# Release: сборка ГОТОВЫХ ПРИЛОЖЕНИЙ (окно tkinter) при выставлении тега v*
+# Как запустить: GitHub → Releases → Draft a new release → тег v1.2 → Publish.
+# На выходе: pptx-checker-windows.exe (двойной клик → окно) и pptx-checker-linux.
 name: Release
 
 on:
@@ -35,8 +35,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt pyinstaller
 
-      - name: Собрать программу в один файл
-        run: pyinstaller --onefile --name pptx-checker check_presentation.py
+      - name: Собрать приложение (один файл, без терминала)
+        # --windowed: двойной клик сразу открывает окно, чёрного терминала нет
+        run: pyinstaller --onefile --windowed --name pptx-checker launcher.py
 
       - name: Переименовать под систему
         shell: bash
