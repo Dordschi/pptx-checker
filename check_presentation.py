@@ -58,26 +58,18 @@ MIN_DPI = 150
 
 # Шрифты, которые есть в Windows/Office «из коробки» — на любом школьном ПК
 STANDARD_FONTS = {
-    "arial",
-    "calibri",
-    "times new roman",
-    "verdana",
-    "tahoma",
-    "georgia",
-    "cambria",
-    "trebuchet ms",
-    "courier new",
+    "arial", "calibri", "times new roman", "verdana", "tahoma",
+    "georgia", "cambria", "trebuchet ms", "courier new",
 }
 
 
 # ------------------------------------------------------------------ модель
 
-
 @dataclass
 class Issue:
-    slide: int  # номер слайда (с 1)
-    defect: str  # id дефекта (как в expected_defects.json)
-    message: str  # читаемое описание для отчёта
+    slide: int       # номер слайда (с 1)
+    defect: str      # id дефекта (как в expected_defects.json)
+    message: str     # читаемое описание для отчёта
 
 
 def _in(emu: int) -> str:
@@ -97,16 +89,17 @@ def _shape_label(shape) -> str:
 
 def _rect(shape):
     """Прямоугольник объекта: (лево, верх, право, низ) в EMU."""
-    return (shape.left, shape.top, shape.left + shape.width, shape.top + shape.height)
+    return (shape.left, shape.top,
+            shape.left + shape.width, shape.top + shape.height)
 
 
 def _rects_overlap(a, b) -> bool:
     """Есть ли непустая общая область у двух прямоугольников?"""
-    return not (a[2] <= b[0] or b[2] <= a[0] or a[3] <= b[1] or b[3] <= a[1])
+    return not (a[2] <= b[0] or b[2] <= a[0] or
+                a[3] <= b[1] or b[3] <= a[1])
 
 
 # ------------------------------------------------------------------ проверки
-
 
 def check_flipped_images(slide, slide_no: int, issues: list) -> None:
     """1. Картинка перевёрнута вертикально/горизонтально?"""
@@ -117,26 +110,17 @@ def check_flipped_images(slide, slide_no: int, issues: list) -> None:
         if xfrm is None:
             continue
         if xfrm.get("flipV") == "1":
-            issues.append(
-                Issue(
-                    slide_no,
-                    "flipped_image",
-                    f"{_shape_label(shape)} перевёрнута вертикально (flipV)",
-                )
-            )
+            issues.append(Issue(
+                slide_no, "flipped_image",
+                f"{_shape_label(shape)} перевёрнута вертикально (flipV)"))
         if xfrm.get("flipH") == "1":
-            issues.append(
-                Issue(
-                    slide_no,
-                    "flipped_image",
-                    f"{_shape_label(shape)} перевёрнута горизонтально (flipH)",
-                )
-            )
+            issues.append(Issue(
+                slide_no, "flipped_image",
+                f"{_shape_label(shape)} перевёрнута горизонтально (flipH)"))
 
 
-def check_bounds(
-    slide, slide_no: int, slide_w: int, slide_h: int, issues: list
-) -> None:
+def check_bounds(slide, slide_no: int, slide_w: int, slide_h: int,
+                 issues: list) -> None:
     """2. Выходит ли объект за границы слайда?"""
     for shape in slide.shapes:
         left, top = shape.left, shape.top
@@ -146,49 +130,36 @@ def check_bounds(
         right, bottom = left + width, top + height
         over = []
         if left < 0:
-            over.append(f'левый край {_in(left)} < 0"')
+            over.append(f"левый край {_in(left)} < 0\"")
         if top < 0:
-            over.append(f'верх {_in(top)} < 0"')
+            over.append(f"верх {_in(top)} < 0\"")
         if right > slide_w:
             over.append(f"правый край {_in(right)} > {_in(slide_w)}")
         if bottom > slide_h:
             over.append(f"низ {_in(bottom)} > {_in(slide_h)}")
         if over:
-            issues.append(
-                Issue(
-                    slide_no,
-                    "object_out_of_slide",
-                    f"{_shape_label(shape)} вылезает за слайд: " + "; ".join(over),
-                )
-            )
+            issues.append(Issue(
+                slide_no, "object_out_of_slide",
+                f"{_shape_label(shape)} вылезает за слайд: " + "; ".join(over)))
 
 
 def check_overlap(slide, slide_no: int, issues: list) -> None:
     """3. Картинка перекрывает текстовый блок?"""
-    pictures = [
-        s
-        for s in slide.shapes
-        if s.shape_type == MSO_SHAPE_TYPE.PICTURE
-        and None not in (s.left, s.top, s.width, s.height)
-    ]
-    text_shapes = [
-        s
-        for s in slide.shapes
-        if getattr(s, "has_text_frame", False)
-        and s.text_frame.text.strip()
-        and None not in (s.left, s.top, s.width, s.height)
-    ]
+    pictures = [s for s in slide.shapes
+                if s.shape_type == MSO_SHAPE_TYPE.PICTURE
+                and None not in (s.left, s.top, s.width, s.height)]
+    text_shapes = [s for s in slide.shapes
+                   if getattr(s, "has_text_frame", False)
+                   and s.text_frame.text.strip()
+                   and None not in (s.left, s.top, s.width, s.height)]
     for pic in pictures:
         pr = _rect(pic)
         for txt in text_shapes:
             if _rects_overlap(pr, _rect(txt)):
-                issues.append(
-                    Issue(
-                        slide_no,
-                        "overlap_picture_text",
-                        f"{_shape_label(pic)} перекрывает " f"{_shape_label(txt)}",
-                    )
-                )
+                issues.append(Issue(
+                    slide_no, "overlap_picture_text",
+                    f"{_shape_label(pic)} перекрывает "
+                    f"{_shape_label(txt)}"))
                 break  # одна жалоба на картинку — не задваиваем
 
 
@@ -208,15 +179,11 @@ def check_low_resolution(slide, slide_no: int, issues: list) -> None:
         h_in = shape.height / EMU_PER_INCH
         dpi = min(px_w / w_in, px_h / h_in)
         if dpi < MIN_DPI:
-            issues.append(
-                Issue(
-                    slide_no,
-                    "low_resolution_image",
-                    f"{_shape_label(shape)} ~{dpi:.0f} DPI "
-                    f'({px_w}x{px_h} px на {w_in:.1f}"x{h_in:.1f}") — '
-                    f"на проекторе будут пиксели",
-                )
-            )
+            issues.append(Issue(
+                slide_no, "low_resolution_image",
+                f"{_shape_label(shape)} ~{dpi:.0f} DPI "
+                f"({px_w}x{px_h} px на {w_in:.1f}\"x{h_in:.1f}\") — "
+                f"на проекторе будут пиксели"))
 
 
 def check_fonts(slide, slide_no: int, issues: list) -> None:
@@ -231,14 +198,10 @@ def check_fonts(slide, slide_no: int, issues: list) -> None:
                 if name and name.lower() not in STANDARD_FONTS:
                     bad.add(name)
         if bad:
-            issues.append(
-                Issue(
-                    slide_no,
-                    "nonstandard_font",
-                    f"{_shape_label(shape)}: шрифт {', '.join(sorted(bad))} — "
-                    f"на школьном компьютере может замениться, вёрстка поедет",
-                )
-            )
+            issues.append(Issue(
+                slide_no, "nonstandard_font",
+                f"{_shape_label(shape)}: шрифт {', '.join(sorted(bad))} — "
+                f"на школьном компьютере может замениться, вёрстка поедет"))
 
 
 def check_auto_transition(slide, slide_no: int, issues: list) -> None:
@@ -246,13 +209,9 @@ def check_auto_transition(slide, slide_no: int, issues: list) -> None:
     tr = slide._element.find(qn("p:transition"))
     if tr is not None and tr.get("advTm"):
         sec = int(tr.get("advTm")) / 1000
-        issues.append(
-            Issue(
-                slide_no,
-                "auto_advance_transition",
-                f"автопереключение через {sec:g} с — слайды поедут сами",
-            )
-        )
+        issues.append(Issue(
+            slide_no, "auto_advance_transition",
+            f"автопереключение через {sec:g} с — слайды поедут сами"))
 
 
 def check_external_links(slide, slide_no: int, issues: list) -> None:
@@ -264,18 +223,13 @@ def check_external_links(slide, slide_no: int, issues: list) -> None:
         items = list(rels)
     for rel in items:
         if getattr(rel, "is_external", False):
-            issues.append(
-                Issue(
-                    slide_no,
-                    "external_link",
-                    f"внешняя ссылка: {getattr(rel, 'target_ref', '?')} — "
-                    f"на школьном ПК без интернета не откроется",
-                )
-            )
+            issues.append(Issue(
+                slide_no, "external_link",
+                f"внешняя ссылка: {getattr(rel, 'target_ref', '?')} — "
+                f"на школьном ПК без интернета не откроется"))
 
 
 # ------------------------------------------------------------------ автопочинка (--fix)
-
 
 def fix_presentation(src_path, dst_path=None):
     """
@@ -301,27 +255,19 @@ def fix_presentation(src_path, dst_path=None):
                 continue
             for attr in ("flipV", "flipH"):
                 if xfrm.get(attr) == "1":
-                    del xfrm.attrib[attr]  # убрали признак переворота
-                    fixed.append(
-                        Issue(
-                            slide_no,
-                            "flipped_image",
-                            f"{_shape_label(shape)}: снято отражение {attr}",
-                        )
-                    )
+                    del xfrm.attrib[attr]      # убрали признак переворота
+                    fixed.append(Issue(
+                        slide_no, "flipped_image",
+                        f"{_shape_label(shape)}: снято отражение {attr}"))
 
         # --- 2) автопереход: убираем advTm, оставляем переход по клику ---
         tr = slide._element.find(qn("p:transition"))
         if tr is not None and tr.get("advTm"):
-            del tr.attrib["advTm"]  # больше сам не переключится
-            tr.set("advClick", "1")  # но кликнуть можно
-            fixed.append(
-                Issue(
-                    slide_no,
-                    "auto_advance_transition",
-                    "автопереход отключён — слайд переключается по клику",
-                )
-            )
+            del tr.attrib["advTm"]             # больше сам не переключится
+            tr.set("advClick", "1")            # но кликнуть можно
+            fixed.append(Issue(
+                slide_no, "auto_advance_transition",
+                "автопереход отключён — слайд переключается по клику"))
 
     # сохраняем всегда КОПИЕЙ — исходник не трогаем
     if dst_path is None:
@@ -333,14 +279,14 @@ def fix_presentation(src_path, dst_path=None):
 
 # ------------------------------------------------------------------ главная функция
 
-
 def check_presentation(path) -> list:
     """Прогоняет все 7 проверок. Возвращает список Issue."""
     prs = Presentation(path)
     issues: list = []
     for slide_no, slide in enumerate(prs.slides, 1):
         check_flipped_images(slide, slide_no, issues)
-        check_bounds(slide, slide_no, prs.slide_width, prs.slide_height, issues)
+        check_bounds(slide, slide_no, prs.slide_width, prs.slide_height,
+                     issues)
         check_overlap(slide, slide_no, issues)
         check_low_resolution(slide, slide_no, issues)
         check_fonts(slide, slide_no, issues)
@@ -351,16 +297,13 @@ def check_presentation(path) -> list:
 
 # ------------------------------------------------------------------ отчёт
 
-
 def print_report(path, issues) -> None:
     prs = Presentation(path)
     n_slides = len(prs.slides._sldIdLst)
     print(f"ПРОВЕРКА: {path}")
-    print(
-        f"Слайдов: {n_slides}. Проверок: 7 (перевёрнутые картинки, "
-        f"вылезание за границы, перекрытие, разрешение, шрифты, "
-        f"автопереход, ссылки)."
-    )
+    print(f"Слайдов: {n_slides}. Проверок: 7 (перевёрнутые картинки, "
+          f"вылезание за границы, перекрытие, разрешение, шрифты, "
+          f"автопереход, ссылки).")
     print("-" * 60)
     if not issues:
         print("✅ Проблем не найдено.")
@@ -369,27 +312,34 @@ def print_report(path, issues) -> None:
         for issue in issues:
             by_slide.setdefault(issue.slide, []).append(issue)
         for slide_no in sorted(by_slide):
+            # одинаковые строки на одном слайде склеиваем: «… ×N»
+            counts = {}
+            order = []
             for issue in by_slide[slide_no]:
-                print(f"⚠️  Слайд {slide_no}: [{issue.defect}] {issue.message}")
+                key = (issue.defect, issue.message)
+                if key in counts:
+                    counts[key] += 1
+                else:
+                    counts[key] = 1
+                    order.append(key)
+            for defect, message in order:
+                n = counts[(defect, message)]
+                tail = f"  ×{n}" if n > 1 else ""
+                print(f"⚠️  Слайд {slide_no}: [{defect}] {message}{tail}")
     print("-" * 60)
     print(f"ИТОГО: проблем — {len(issues)}")
     if issues:
-        print(
-            "Рекомендация: исправьте найденное или сохраните копию в PDF "
-            "как страховку."
-        )
+        print("Рекомендация: исправьте найденное или сохраните копию в PDF "
+              "как страховку.")
 
 
 # ------------------------------------------------------------------ самопроверка (--test)
 
-
 def run_test() -> int:
     expected_path = TEST_FILES / "expected_defects.json"
     if not expected_path.exists():
-        print(
-            "Не найден test_files/expected_defects.json. "
-            "Сначала запусти: python3 generate_test_files.py"
-        )
+        print("Не найден test_files/expected_defects.json. "
+              "Сначала запусти: python3 generate_test_files.py")
         return 2
     expected = json.loads(expected_path.read_text(encoding="utf-8"))
 
@@ -400,8 +350,7 @@ def run_test() -> int:
         found = check_presentation(path)
 
         exp_counter = Counter(
-            (e["slide"], e["defect"])
-            for e in expected_list
+            (e["slide"], e["defect"]) for e in expected_list
             if e["defect"] in IMPLEMENTED
         )
         found_counter = Counter((i.slide, i.defect) for i in found)
@@ -418,11 +367,8 @@ def run_test() -> int:
             all_ok = False
             print(f"  ❌ ЛОЖНОЕ СРАБАТЫВАНИЕ: слайд {key[0]}: {key[1]} ×{count}")
 
-        not_impl = {
-            (e["slide"], e["defect"])
-            for e in expected_list
-            if e["defect"] not in IMPLEMENTED
-        }
+        not_impl = {(e["slide"], e["defect"]) for e in expected_list
+                    if e["defect"] not in IMPLEMENTED}
         for slide_no, defect in sorted(not_impl):
             print(f"  ⏳ слайд {slide_no}: {defect} — проверка ещё не реализована")
 
@@ -436,25 +382,35 @@ def run_test() -> int:
 
 # ------------------------------------------------------------------ CLI
 
-
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Проверка .pptx перед уроком (7 проверок)"
-    )
+        description="Проверка .pptx перед уроком (7 проверок)")
     parser.add_argument("file", nargs="?", help="путь к презентации .pptx")
-    parser.add_argument(
-        "--test", action="store_true", help="самопроверка на эталонных файлах"
-    )
-    parser.add_argument(
-        "--fix", action="store_true", help="исправить безопасные дефекты в копию файла"
-    )
+    parser.add_argument("--test", action="store_true",
+                        help="самопроверка на эталонных файлах")
+    parser.add_argument("--fix", action="store_true",
+                        help="исправить безопасные дефекты в копию файла")
     args = parser.parse_args()
 
     if args.test:
         return run_test()
     if not args.file:
-        parser.print_help()
-        return 2
+        # Двойной клик по программе (без аргументов) — открыть окно с интерфейсом
+        try:
+            import app_ui
+            print("Окно программы открыто. Закройте его, чтобы завершить.")
+            app_ui.root.mainloop()
+            return 0
+        except Exception:
+            # tkinter недоступен (например, Linux без python3-tk) — fallback
+            parser.print_help()
+            print("\nОкно не открылось. Запуск из командной строки: см. README.")
+            if sys.stdin is not None and sys.stdin.isatty():
+                try:
+                    input("Нажмите Enter, чтобы закрыть окно...")
+                except EOFError:
+                    pass
+            return 2
     path = Path(args.file)
     if not path.exists():
         print(f"Файл не найден: {path}")
