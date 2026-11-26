@@ -1,3 +1,4 @@
 # Зависимости проекта «Проверка презентации .pptx перед уроком»
 # Установка:  pip install -r requirements.txt
 python-pptx>=0.6.21
+Pillow>=10.0.0

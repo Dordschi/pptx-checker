@@ -1,5 +1,5 @@
 # CI: проверка проекта на двух системах (Ubuntu и Windows)
-# Запускается автоматически при каждом push в GitHub.
+# Запускается автоматически при каждом push и pull request в GitHub.
 name: CI
 
 on:
@@ -31,16 +31,19 @@ jobs:
       - name: Установить зависимости (requirements.txt)
         run: python -m pip install -r requirements.txt
 
-      - name: Проверить, что все файлы компилируются
-        run: python -m py_compile check_presentation.py app_ui.py generate_test_files.py launcher.py
+      - name: Проверить, что все модули компилируются
+        run: python -m py_compile check_presentation.py app_ui.py generate_test_files.py launcher.py test_checker.py
 
       - name: Создать эталонные тестовые презентации
         run: python generate_test_files.py
 
-      - name: Самопроверка программы (ожидается PASS 8/8)
+      - name: Самопроверка программы на эталоне (--test)
         run: python check_presentation.py --test
 
-      - name: Прогнать на файле с дефектами (ожидается отчёт, код 1)
+      - name: Модульные и регрессионные тесты (unittest)
+        run: python -m unittest test_checker.py -v
+
+      - name: Прогнать CLI на файле с дефектами (ожидается отчёт, код 1)
         shell: bash
         run: |
           set +e
@@ -48,10 +51,11 @@ jobs:
           code=$?
           set -e
           cat out.txt
-          # код 1 = «нашли проблемы» (это успех проверки), 2/3 = поломка
+          # код 1 = «нашли проблемы» (штатный результат проверки), 2/3 = поломка
           if [ "$code" -gt 1 ]; then
             echo "Программа упала с ошибкой."
             exit 1
           fi
           grep -q "ИТОГО" out.txt
           echo "OK: отчёт построен, код выхода $code"
+          rm -f out.txt

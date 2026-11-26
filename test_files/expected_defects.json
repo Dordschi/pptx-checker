@@ -3,42 +3,47 @@
     {
       "slide": 2,
       "defect": "flipped_image",
-      "description": "картинка перевёрнута вертикально (flipV=1)"
+      "description": "картинка перевёрнута вверх ногами (flipV=1)"
     },
     {
       "slide": 3,
       "defect": "object_out_of_slide",
-      "description": "текстовое поле: низ (5.6+3.2=8.8\") > высоты слайда (7.5\")"
+      "description": "текстовое поле выходит за нижнюю границу слайда (8.8\" > 7.5\")"
     },
     {
       "slide": 3,
       "defect": "object_out_of_slide",
-      "description": "картинка: правый край (10.5+4=14.5\") > ширины слайда (13.333\")"
+      "description": "картинка выходит за правый край слайда (14.5\" > 13.333\")"
     },
     {
       "slide": 4,
       "defect": "overlap_picture_text",
-      "description": "прямоугольники текста (0.8..6.8) и картинки (4.5..10.5) пересекаются"
+      "description": "непрозрачная картинка на верхнем слое закрывает текст"
     },
     {
       "slide": 5,
       "defect": "low_resolution_image",
-      "description": "80x80 px при отображении 6\"x5.5\" → ~13 DPI (< 150)"
+      "description": "80x80 px на 6\"x5.5\" -> ~13 DPI (< 75 DPI)"
     },
     {
       "slide": 6,
       "defect": "nonstandard_font",
-      "description": "используется шрифт 'Comic Sans MS' (не из белого списка, не внедрён)"
+      "description": "шрифт 'Montserrat' не входит в стандартный набор и не внедрён"
     },
     {
       "slide": 7,
       "defect": "auto_advance_transition",
-      "description": "<p:transition advTm=\"2000\" advClick=\"0\"> — сам переключится через 2 с"
+      "description": "<p:transition advTm=\"2000\"> — сам переключится через 2 с"
     },
     {
       "slide": 8,
       "defect": "external_link",
-      "description": "ран с внешним hyperlink (TargetMode=External)"
+      "description": "внешняя гиперссылка (TargetMode=External)"
+    },
+    {
+      "slide": 9,
+      "defect": "small_font",
+      "description": "кегль 10 pt (< 14 pt) нечитаем с задних парт"
     }
   ],
   "clean.pptx": []

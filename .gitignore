@@ -1,8 +1,18 @@
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
 .venv/
 venv/
+.pytest_cache/
+
+# Сборки PyInstaller и временные выводы
+build/
+dist/
+*.spec
+out.txt
+
+# Автоматически исправленные копии презентаций
+*_исправлено.pptx
 
 # ОС
 .DS_Store

@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Генератор тестовых презентаций для проекта «Проверка .pptx перед уроком».
+Генератор эталонных тестовых презентаций для проекта «Проверка .pptx перед уроком».
 
 Создаёт в папке test_files/:
-  - broken.pptx        — презентация, где КАЖДЫЙ слайд содержит ровно один дефект
-  - clean.pptx         — «здоровая» презентация (на ней проверяем, что нет ложных срабатываний)
-  - expected_defects.json — эталон: в каком файле и на каком слайде какой дефект спрятан
+  - broken.pptx           — презентация с полным набором типовых дефектов
+  - clean.pptx            — «здоровая» презентация со сложной реальной вёрсткой
+                            (фоновая подложка под текстом, зеркальная картинка flipH,
+                            прозрачная PNG-рамка поверх текста, шрифт темы +mn-lt,
+                            микросмещение -24 EMU, ссылка mailto:), на которой
+                            НЕ должно быть ни одного ложного срабатывания
+  - expected_defects.json — эталон для самопроверки (--test)
 
 Запуск:  python3 generate_test_files.py
-Зависимости: pip install python-pptx pillow
 """
 
 import json
@@ -18,8 +21,8 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 from pptx import Presentation
-from pptx.util import Inches, Pt
 from pptx.oxml.ns import qn
+from pptx.util import Inches, Pt
 
 # Windows: не падать на кириллице в консоли (cp1252/cp866)
 for _stream in (sys.stdout, sys.stderr):
@@ -33,10 +36,11 @@ BASE = Path(__file__).resolve().parent
 OUT = BASE / "test_files"
 ASSETS = OUT / "assets"
 
+
 # ---------------------------------------------------------------- вспомогательные
 
 def _get_font(size: int):
-    """Найти нормальный шрифт для рисования картинок (иначе встроенный мелкий)."""
+    """Найти шрифт для генерации тестовых изображений."""
     candidates = [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
@@ -51,7 +55,7 @@ def _get_font(size: int):
 
 
 def make_scheme(path: Path) -> None:
-    """Нарисовать простую «схему» с подписями — как в учебных презентациях."""
+    """Нарисовать чёткую учебную схему 900x600 px."""
     w, h = 900, 600
     img = Image.new("RGB", (w, h), "white")
     d = ImageDraw.Draw(img)
@@ -59,7 +63,6 @@ def make_scheme(path: Path) -> None:
     d.rectangle([50, 70, 380, 250], **box)
     d.rectangle([520, 70, 850, 250], **box)
     d.rectangle([285, 380, 615, 560], outline="darkgreen", width=5)
-    # стрелки
     d.line([380, 160, 510, 160], fill="black", width=5)
     d.polygon([(520, 160), (495, 147), (495, 173)], fill="black")
     d.line([230, 250, 340, 375], fill="black", width=5)
@@ -74,11 +77,27 @@ def make_scheme(path: Path) -> None:
 
 
 def make_tiny(path: Path) -> None:
-    """Крошечная картинка 80x80 — имитация «пиксельной» картинки с интернета."""
+    """Крошечная картинка 80x80 px — имитация растянутой иконки из интернета."""
     img = Image.new("RGB", (80, 80), (255, 220, 120))
     d = ImageDraw.Draw(img)
     d.ellipse([10, 10, 70, 70], fill="orange", outline="red", width=3)
     d.text((24, 30), "?!?", fill="black", font=_get_font(22))
+    img.save(path)
+
+
+def make_soft_bg(path: Path) -> None:
+    """Светлая фоновая подложка 1600x900 px для проверки отсутствия ложных срабатываний."""
+    img = Image.new("RGB", (1600, 900), (242, 247, 255))
+    d = ImageDraw.Draw(img)
+    d.rectangle([20, 20, 1580, 880], outline=(190, 210, 240), width=8)
+    img.save(path)
+
+
+def make_transparent_frame(path: Path) -> None:
+    """PNG-рамка с полностью прозрачной серединой (проверка учёта альфа-канала)."""
+    img = Image.new("RGBA", (800, 500), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, 0, 799, 499], outline=(40, 110, 180, 255), width=14)
     img.save(path)
 
 
@@ -93,21 +112,22 @@ def add_text(slide, left, top, width, height, text, size=24,
     for para in tf.paragraphs:
         for run in para.runs:
             run.font.size = Pt(size)
-            run.font.name = font_name
+            if font_name is not None:
+                run.font.name = font_name
             run.font.bold = bold
     return box
 
 
-def set_flip_vertical(pic) -> None:
-    """Повернуть картинку вертикально (flipV=1) — атрибут прямо в XML слайда."""
+def set_flip(pic, attr: str = "flipV") -> None:
+    """Установить flipV=1 или flipH=1 в XML картинки."""
     xfrm = pic._element.spPr.find(qn("a:xfrm"))
     if xfrm is None:
-        raise RuntimeError("у картинки нет xfrm — сначала задай позицию")
-    xfrm.set("flipV", "1")
+        raise RuntimeError("у картинки нет xfrm")
+    xfrm.set(attr, "1")
 
 
 def set_auto_advance(slide, ms: int) -> None:
-    """Включить автопереключение слайда (слайды начнут «ездить сами»)."""
+    """Включить автопереключение слайда по таймеру."""
     sld = slide._element
     transition = sld.makeelement(
         qn("p:transition"), {"advClick": "0", "advTm": str(ms)}
@@ -115,17 +135,17 @@ def set_auto_advance(slide, ms: int) -> None:
     transition.append(transition.makeelement(qn("p:fade"), {}))
     clr = sld.find(qn("p:clrMapOvr"))
     anchor = clr if clr is not None else sld.find(qn("p:cSld"))
-    anchor.addnext(transition)  # порядок в XML: cSld -> clrMapOvr -> transition
+    anchor.addnext(transition)
 
 
 def new_presentation() -> Presentation:
     prs = Presentation()
-    prs.slide_width = Inches(13.333)   # 16:9, как у современных проекторов
+    prs.slide_width = Inches(13.333)   # 16:9 (33,9 x 19,1 см)
     prs.slide_height = Inches(7.5)
     return prs
 
 
-# ---------------------------------------------------------------- файлы
+# ---------------------------------------------------------------- сборка файлов
 
 def build_broken(path: Path, scheme: Path, tiny: Path) -> list:
     prs = new_presentation()
@@ -134,123 +154,170 @@ def build_broken(path: Path, scheme: Path, tiny: Path) -> list:
 
     # --- слайд 1: обложка (дефектов нет) ---
     s = prs.slides.add_slide(blank)
-    add_text(s, 1.5, 2.6, 10.5, 1.6,
+    add_text(s, 1.5, 2.5, 10.5, 1.6,
              "Тестовая презентация «СЛОМАННАЯ»\n"
-             "Каждый слайд содержит ровно один дефект", 32, bold=True)
-    add_text(s, 1.5, 4.6, 10.5, 1.0,
-             "Эталон для проверки программы (см. expected_defects.json)", 20)
+             "Набор эталонных дефектов для самопроверки", 32, bold=True)
+    add_text(s, 1.5, 4.5, 10.5, 1.0,
+             "Эталон для команды python check_presentation.py --test", 20)
 
-    # --- слайд 2: перевёрнутая картинка ---
+    # --- слайд 2: перевёрнутая вверх ногами картинка ---
     s = prs.slides.add_slide(blank)
     add_text(s, 0.5, 0.3, 12, 0.9, "Слайд 2. Схема процесса", 28, bold=True)
     pic = s.shapes.add_picture(str(scheme), Inches(3.5), Inches(1.6),
                                Inches(6), Inches(4))
-    set_flip_vertical(pic)                       # ← ДЕФЕКТ 1
-    expected.append({"slide": 2, "defect": "flipped_image",
-                     "description": "картинка перевёрнута вертикально (flipV=1)"})
+    set_flip(pic, "flipV")
+    expected.append({
+        "slide": 2,
+        "defect": "flipped_image",
+        "description": "картинка перевёрнута вверх ногами (flipV=1)",
+    })
 
     # --- слайд 3: объекты вылезают за границы слайда ---
     s = prs.slides.add_slide(blank)
-    add_text(s, 0.5, 0.3, 12, 0.9, "Слайд 3. Длинный текст", 28, bold=True)
+    add_text(s, 0.5, 0.3, 12, 0.9, "Слайд 3. Выход за края слайда", 28, bold=True)
     add_text(s, 0.7, 5.6, 8, 3.2,
              "Этот текстовый блок начинается слишком низко и заканчивается "
              "значительно ниже нижней границы слайда. В режиме показа последние "
-             "строки просто не будут видны. Классическая ошибка: текст не "
-             "поместился, а вы его не проверили перед уроком.", 22)
-    expected.append({"slide": 3, "defect": "object_out_of_slide",
-                     "description": "текстовое поле: низ (5.6+3.2=8.8\") > высоты слайда (7.5\")"})
-    pic = s.shapes.add_picture(str(scheme), Inches(10.5), Inches(1.6),
-                               Inches(4), Inches(2.7))   # право = 14.5" > 13.333"
-    expected.append({"slide": 3, "defect": "object_out_of_slide",
-                     "description": "картинка: правый край (10.5+4=14.5\") > ширины слайда (13.333\")"})
+             "строки просто обрезаются проектором.", 22)
+    expected.append({
+        "slide": 3,
+        "defect": "object_out_of_slide",
+        "description": "текстовое поле выходит за нижнюю границу слайда (8.8\" > 7.5\")",
+    })
+    s.shapes.add_picture(str(scheme), Inches(10.5), Inches(1.6),
+                         Inches(4), Inches(2.7))
+    expected.append({
+        "slide": 3,
+        "defect": "object_out_of_slide",
+        "description": "картинка выходит за правый край слайда (14.5\" > 13.333\")",
+    })
 
-    # --- слайд 4: картинка перекрывает текст ---
+    # --- слайд 4: непрозрачная картинка перекрывает текст сверху ---
     s = prs.slides.add_slide(blank)
     add_text(s, 0.5, 0.3, 12, 0.9, "Слайд 4. Важные определения", 28, bold=True)
     add_text(s, 0.8, 1.6, 6, 3.4,
-             "Здесь должен быть текст определения. Он хорошо читался, пока "
-             "поверх него не вставили картинку. Правая часть абзацев "
-             "оказалась под изображением — на проекторе это выглядит как "
-             "мусор.", 20)
+             "Здесь находится текст определения. Поверх него случайно положили "
+             "непрозрачную схему на верхний слой — правая половина строк закрыта "
+             "изображением.", 20)
     s.shapes.add_picture(str(scheme), Inches(4.5), Inches(2.6),
-                         Inches(6), Inches(4))           # пересекается с текстом
-    expected.append({"slide": 4, "defect": "overlap_picture_text",
-                     "description": "прямоугольники текста (0.8..6.8) и картинки (4.5..10.5) пересекаются"})
+                         Inches(6), Inches(4))
+    expected.append({
+        "slide": 4,
+        "defect": "overlap_picture_text",
+        "description": "непрозрачная картинка на верхнем слое закрывает текст",
+    })
 
     # --- слайд 5: картинка низкого разрешения ---
     s = prs.slides.add_slide(blank)
-    add_text(s, 0.5, 0.3, 12, 0.9, "Слайд 5. Иллюстрация", 28, bold=True)
+    add_text(s, 0.5, 0.3, 12, 0.9, "Слайд 5. Растянутая картинка", 28, bold=True)
     add_text(s, 0.7, 1.4, 6, 2.5,
-             "Картинка 80x80 пикселей растянута на 6 дюймов. "
-             "Эффективное разрешение ≈ 13 DPI — на проекторе будут "
-             "огромные пиксели.", 20)
+             "Картинка 80x80 пикселей растянута на пол-экрана (~13 DPI). "
+             "На школьном проекторе она превратится в размытые квадраты.", 20)
     s.shapes.add_picture(str(tiny), Inches(7), Inches(1.6),
-                         Inches(6), Inches(5.5))         # 80px на 6" = 13 DPI
-    expected.append({"slide": 5, "defect": "low_resolution_image",
-                     "description": "80x80 px при отображении 6\"x5.5\" → ~13 DPI (< 150)"})
+                         Inches(6), Inches(5.5))
+    expected.append({
+        "slide": 5,
+        "defect": "low_resolution_image",
+        "description": "80x80 px на 6\"x5.5\" -> ~13 DPI (< 75 DPI)",
+    })
 
-    # --- слайд 6: нестандартный шрифт ---
+    # --- слайд 6: нестандартный веб-шрифт (не встроен в файл) ---
     s = prs.slides.add_slide(blank)
     add_text(s, 0.5, 0.3, 12, 0.9, "Слайд 6. Нестандартный шрифт", 28, bold=True)
     add_text(s, 0.7, 1.6, 11, 3.0,
-             "Этот текст набран шрифтом Comic Sans MS, который не входит в "
-             "стандартный набор и не внедрён в файл. На компьютере в классе "
-             "его может не быть — и PowerPoint молча подменит шрифт, "
-             "а вёрстка поедет.", 22, font_name="Comic Sans MS")
-    expected.append({"slide": 6, "defect": "nonstandard_font",
-                     "description": "используется шрифт 'Comic Sans MS' (не из белого списка, не внедрён)"})
+             "Этот текст набран дизайнерским шрифтом Montserrat (часто остаётся "
+             "после экспорта из Canva или онлайн-шаблонов), которого нет в "
+             "стандартной поставке Windows и Office.", 22, font_name="Montserrat")
+    expected.append({
+        "slide": 6,
+        "defect": "nonstandard_font",
+        "description": "шрифт 'Montserrat' не входит в стандартный набор и не внедрён",
+    })
 
-    # --- слайд 7: автопереход ---
+    # --- слайд 7: забытый автопереход ---
     s = prs.slides.add_slide(blank)
-    add_text(s, 0.5, 0.3, 12, 0.9, "Слайд 7. Автопереход", 28, bold=True)
+    add_text(s, 0.5, 0.3, 12, 0.9, "Слайд 7. Автопереход по таймеру", 28, bold=True)
     add_text(s, 0.7, 1.6, 11, 2.5,
-             "У этого слайда забыт автопереключение через 2 секунды. "
-             "На уроке слайды начнут «ездить сами» — учитель не успевает "
-             "говорить.", 22)
-    set_auto_advance(s, 2000)                    # ← ДЕФЕКТ
-    expected.append({"slide": 7, "defect": "auto_advance_transition",
-                     "description": "<p:transition advTm=\"2000\" advClick=\"0\"> — сам переключится через 2 с"})
+             "У этого слайда включено автопереключение через 2 секунды — "
+             "слайд сам уедет вперёд посреди объяснения учителя.", 22)
+    set_auto_advance(s, 2000)
+    expected.append({
+        "slide": 7,
+        "defect": "auto_advance_transition",
+        "description": "<p:transition advTm=\"2000\"> — сам переключится через 2 с",
+    })
 
     # --- слайд 8: внешняя ссылка ---
     s = prs.slides.add_slide(blank)
-    add_text(s, 0.5, 0.3, 12, 0.9, "Слайд 8. Внешняя ссылка", 28, bold=True)
+    add_text(s, 0.5, 0.3, 12, 0.9, "Слайд 8. Внешняя интернет-ссылка", 28, bold=True)
     add_text(s, 0.7, 1.6, 11, 2.0,
-             "Слайд ссылается на видео во внешнем файле/интернете. "
-             "В школе без интернета или на чужом компьютере ссылка не "
-             "откроется.", 22)
-    box = add_text(s, 0.7, 4.0, 6, 1.0, "Открыть видео", 24)
+             "Слайд ссылается на внешний ролик в интернете — в кабинете без сети "
+             "ссылка не откроется.", 22)
+    box = add_text(s, 0.7, 4.0, 6, 1.0, "Открыть видеоурок", 24)
     run = box.text_frame.paragraphs[0].runs[0]
-    run.hyperlink.address = "https://example.com/video-lesson"   # ← ДЕФЕКТ
-    expected.append({"slide": 8, "defect": "external_link",
-                     "description": "ран с внешним hyperlink (TargetMode=External)"})
+    run.hyperlink.address = "https://example.com/video-lesson"
+    expected.append({
+        "slide": 8,
+        "defect": "external_link",
+        "description": "внешняя гиперссылка (TargetMode=External)",
+    })
+
+    # --- слайд 9: слишком мелкий нечитаемый шрифт ---
+    s = prs.slides.add_slide(blank)
+    add_text(s, 0.5, 0.3, 12, 0.9, "Слайд 9. Мелкий нечитаемый кегль", 28, bold=True)
+    add_text(s, 0.7, 1.6, 11, 3.0,
+             "Этот абзац скопирован мелким 10-м кеглем — с третьей парты "
+             "ученики не смогут прочитать ни одного слова на проекторе.", 10)
+    expected.append({
+        "slide": 9,
+        "defect": "small_font",
+        "description": "кегль 10 pt (< 14 pt) нечитаем с задних парт",
+    })
 
     prs.save(path)
     return expected
 
 
-def build_clean(path: Path, scheme: Path) -> None:
+def build_clean(path: Path, scheme: Path, soft_bg: Path, frame_png: Path) -> None:
+    """
+    Здоровая презентация со сложными реальными приёмами вёрстки, которые
+    НЕ должны вызывать ложных срабатываний анализатора.
+    """
     prs = new_presentation()
     blank = prs.slide_layouts[6]
 
+    # Слайд 1: обложка
     s = prs.slides.add_slide(blank)
     add_text(s, 1.5, 2.8, 10.5, 1.5,
              "Тестовая презентация «ЧИСТАЯ»\nЗдоровый файл без дефектов", 32, bold=True)
 
+    # Слайд 2: фоновая подложка ПОД текстом (z=0), зеркальная схема (flipH=1)
+    # и декоративная PNG-рамка с прозрачным центром ПОВЕРХ текста!
     s = prs.slides.add_slide(blank)
-    add_text(s, 0.5, 0.3, 12, 0.9, "Всё в порядке", 28, bold=True)
-    add_text(s, 0.8, 1.6, 5.5, 3.5,
-             "Стандартный шрифт Arial, текст внутри границ слайда, "
-             "картинка не перекрывает текст и не вылезает за край. "
-             "Такой файл программа должна пропустить без единого "
-             "предупреждения.", 20)
-    s.shapes.add_picture(str(scheme), Inches(7), Inches(1.6),
-                         Inches(5.5), Inches(3.7))
+    s.shapes.add_picture(str(soft_bg), Inches(0), Inches(0),
+                         Inches(13.333), Inches(7.5))
+    add_text(s, 0.8, 0.4, 11.5, 0.9, "Фон снизу и прозрачная рамка сверху — это норма", 28, bold=True)
+    add_text(s, 1.0, 2.0, 5.2, 2.8,
+             "Текст расположен поверх фоновой подложки и внутри прозрачной "
+             "PNG-рамки. Справа — отражённая по горизонтали (flipH) иллюстрация.", 20)
+    s.shapes.add_picture(str(frame_png), Inches(0.8), Inches(1.7),
+                         Inches(5.6), Inches(3.4))
+    mirrored = s.shapes.add_picture(str(scheme), Inches(7.0), Inches(1.7),
+                                    Inches(5.5), Inches(3.7))
+    set_flip(mirrored, "flipH")
 
+    # Слайд 3: служебный шрифт темы (+mn-lt), микропогрешность -24 EMU и почта mailto:
     s = prs.slides.add_slide(blank)
-    add_text(s, 0.5, 0.3, 12, 0.9, "Второй слайд — тоже без ошибок", 28, bold=True)
-    add_text(s, 0.8, 1.6, 11, 4.0,
-             "Простой текст. Если программа найдёт здесь проблему — "
-             "это ложное срабатывание, и её нужно дорабатывать.", 22)
+    title_box = add_text(s, 0.5, 0.0, 12, 0.9, "Шрифт темы и контакты автора", 28, bold=True)
+    title_box.top = -24  # погрешность округления PowerPoint (-0,00067 мм)
+
+    body = add_text(s, 0.8, 1.6, 11, 3.0,
+                    "Этот текст использует стандартный токен шрифта темы +mn-lt, "
+                    "который в PowerPoint ссылается на Calibri/Arial.", 22, font_name="+mn-lt")
+    _ = body
+
+    mail_box = add_text(s, 0.8, 5.2, 6, 0.9, "Написать учителю", 20)
+    mail_box.text_frame.paragraphs[0].runs[0].hyperlink.address = "mailto:teacher@school.edu"
 
     prs.save(path)
 
@@ -261,13 +328,17 @@ def main() -> None:
 
     scheme = ASSETS / "scheme.png"
     tiny = ASSETS / "tiny.png"
+    soft_bg = ASSETS / "soft_bg.png"
+    frame_png = ASSETS / "frame_transparent.png"
     make_scheme(scheme)
     make_tiny(tiny)
+    make_soft_bg(soft_bg)
+    make_transparent_frame(frame_png)
 
     broken = OUT / "broken.pptx"
     clean = OUT / "clean.pptx"
     defects = build_broken(broken, scheme, tiny)
-    build_clean(clean, scheme)
+    build_clean(clean, scheme, soft_bg, frame_png)
 
     expected = {
         "broken.pptx": defects,
@@ -277,11 +348,11 @@ def main() -> None:
         json.dumps(expected, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    print("Готово! Созданы файлы:")
-    for f in sorted(OUT.rglob("*")):
-        if f.is_file():
-            print(f"  {f.relative_to(BASE)}  ({f.stat().st_size} байт)")
-    print(f"\nДефектов в эталоне: {len(defects)} (на 7 слайдах из 8)")
+    print("Готово! Эталонные файлы обновлены:")
+    for name in ("broken.pptx", "clean.pptx", "expected_defects.json"):
+        f = OUT / name
+        print(f"  {f.relative_to(BASE)}  ({f.stat().st_size} байт)")
+    print(f"\nДефектов в эталоне broken.pptx: {len(defects)}")
 
 
 if __name__ == "__main__":
